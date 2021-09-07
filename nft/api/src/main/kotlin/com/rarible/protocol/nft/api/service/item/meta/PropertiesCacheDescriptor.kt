@@ -1,7 +1,9 @@
 package com.rarible.protocol.nft.api.service.item.meta
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.rarible.core.cache.CacheDescriptor
 import com.rarible.core.common.toOptional
 import com.rarible.core.logging.LoggingUtils
@@ -9,11 +11,13 @@ import com.rarible.ethereum.domain.EthUInt256
 import com.rarible.protocol.client.DefaultProtocolWebClientCustomizer
 import com.rarible.protocol.contracts.erc1155.v1.rarible.RaribleToken
 import com.rarible.protocol.contracts.erc721.v4.rarible.MintableToken
+import com.rarible.protocol.nft.core.model.ItemAttribute
 import com.rarible.protocol.nft.core.model.ItemId
 import com.rarible.protocol.nft.core.model.ItemProperties
 import com.rarible.protocol.nft.core.model.TokenStandard
 import com.rarible.protocol.nft.core.repository.TokenRepository
 import com.rarible.protocol.nft.core.repository.history.LazyNftItemHistoryRepository
+import kotlinx.coroutines.reactor.mono
 import org.apache.commons.lang3.time.DateUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -27,6 +31,7 @@ import scalether.domain.Address
 import scalether.transaction.MonoTransactionSender
 import java.math.BigInteger
 import java.time.Duration
+import java.util.*
 
 @Component
 class PropertiesCacheDescriptor(
@@ -42,7 +47,7 @@ class PropertiesCacheDescriptor(
         DefaultProtocolWebClientCustomizer().customize(it)
     }.build()
 
-    private val mapper = ObjectMapper()
+    private val mapper = ObjectMapper().registerKotlinModule()
 
     override val collection: String = "cache_properties"
     override fun getMaxAge(value: ItemProperties?): Long =
@@ -60,11 +65,13 @@ class PropertiesCacheDescriptor(
                 .let { (address, tokenId) -> getUri(address, tokenId).map { it.replace("{id}", EthUInt256.of(tokenId).toString()) } }
                 .flatMap { uri ->
                     logger.info(marker, "got uri: $uri")
-                    if (uri == "") {
-                        logger.warn(marker, "unable to get metadata for $id: token URI is empty")
-                        Mono.empty()
-                    } else {
-                        getByUri(uri)
+                    when {
+                        uri.startsWith("http") -> getByUri(uri)
+                        uri.isNotEmpty() -> getFromBase64(uri)
+                        else -> {
+                            logger.warn(marker, "unable to get metadata for $id")
+                            Mono.empty()
+                        }
                     }
                 }
                 .timeout(Duration.ofMillis(requestTimeout))
@@ -75,33 +82,55 @@ class PropertiesCacheDescriptor(
         }
     }
 
+    fun getFromBase64(uri: String): Mono<ItemProperties> {
+        val str = String(Base64.getMimeDecoder().decode(uri.toByteArray()))
+        return mono {
+            logger.info("Got properties from base64")
+            parse(str)
+        }
+    }
+
     fun getByUri(uri: String): Mono<ItemProperties> {
         return client.get()
             .uri(ipfsService.resolveRealUrl(uri))
             .retrieve()
             .bodyToMono<String>()
             .map {
-                val node = mapper.readTree(it) as ObjectNode
-                val attributes = node.path("attributes")
                 logger.info("Got properties from $uri")
-
-                ItemProperties(
-                    name = node.getText("name", "label", "title") ?: "Untitled",
-                    description = node.getText("description"),
-                    image = node.getText("image", "image_url"),
-                    imagePreview = null,
-                    imageBig = null,
-                    animationUrl = node.getText("animation_url"),
-                    attributes = when {
-                        attributes.isObject -> convertObjectAttributes(attributes.require())
-                        attributes.isArray -> convertArrayAttributes(attributes.require())
-                        else -> emptyList()
-                    }
-                )
+                parse(it)
             }
     }
 
-    private fun getUri(token: Address, tokenId: BigInteger): Mono<String> {
+    fun parse(body: String): ItemProperties {
+        val node = mapper.readTree(body) as ObjectNode
+
+        return ItemProperties(
+            name = node.getText("name", "label", "title") ?: DEFAULT_TITLE,
+            description = node.getText("description"),
+            image = node.getText("image", "image_url"),
+            imagePreview = null,
+            imageBig = null,
+            animationUrl = node.getText("animation_url"),
+            attributes = attributes(node)
+        )
+    }
+
+    fun attributes(node: ObjectNode): List<ItemAttribute> {
+        return when {
+            !node.path("attributes").isEmpty -> {
+                val attributes = node.path("attributes")
+                when {
+                    attributes.isObject -> convertObjectAttributes(attributes.require())
+                    attributes.isArray -> convertArrayAttributes(attributes.require())
+                    else -> emptyList()
+                }
+            }
+            !node.path("traits").isEmpty -> node.path("traits").toProperties()
+            else -> emptyList()
+        }
+    }
+
+    fun getUri(token: Address, tokenId: BigInteger): Mono<String> {
         //todo тест на получение lazy item properties
         return lazyNftItemHistoryRepository.findById(ItemId(token, EthUInt256(tokenId)))
             .map { it.uri }
@@ -126,6 +155,7 @@ class PropertiesCacheDescriptor(
     }
 
     companion object {
+        val DEFAULT_TITLE = "Untitled"
         val logger: Logger = LoggerFactory.getLogger(PropertiesCacheDescriptor::class.java)
     }
 }
