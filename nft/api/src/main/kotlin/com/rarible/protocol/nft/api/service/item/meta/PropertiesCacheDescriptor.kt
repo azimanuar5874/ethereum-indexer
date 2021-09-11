@@ -16,6 +16,7 @@ import com.rarible.protocol.nft.core.model.ItemProperties
 import com.rarible.protocol.nft.core.model.TokenStandard
 import com.rarible.protocol.nft.core.repository.TokenRepository
 import com.rarible.protocol.nft.core.repository.history.LazyNftItemHistoryRepository
+import kotlinx.coroutines.reactor.mono
 import org.apache.commons.lang3.time.DateUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -25,7 +26,6 @@ import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToMono
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
-import reactor.kotlin.core.publisher.toMono
 import scalether.domain.Address
 import scalether.transaction.MonoTransactionSender
 import java.math.BigInteger
@@ -83,7 +83,7 @@ class PropertiesCacheDescriptor(
     fun getFromBase64(uri: String): Mono<ItemProperties> {
         val str = base64MimeToString(uri)
         logger.info("Decoding properties from base64: $str")
-        return parse(str).toMono()
+        return mono { parse(str) }
     }
 
     fun getByUri(uri: String): Mono<ItemProperties> {
@@ -91,24 +91,39 @@ class PropertiesCacheDescriptor(
             .uri(ipfsService.resolveRealUrl(uri))
             .retrieve()
             .bodyToMono<String>()
-            .map {
+            .flatMap {
                 logger.info("Got properties from $uri")
-                parse(it)
+                mono { parse(it) }
             }
     }
 
-    private fun parse(body: String): ItemProperties {
+    private suspend fun parse(body: String): ItemProperties {
         val node = mapper.readTree(body) as ObjectNode
-
+        val image = image(node)
+        val animationUrl = node.getText("animation_url") ?: image
         return ItemProperties(
             name = node.getText("name", "label", "title") ?: DEFAULT_TITLE,
             description = node.getText("description"),
-            image = node.getText("image", "image_url"),
+            image = image,
             imagePreview = null,
             imageBig = null,
-            animationUrl = node.getText("animation_url"),
+            animationUrl = animationUrl,
             attributes = attributes(node)
         )
+    }
+
+    suspend fun image(node: ObjectNode): String {
+        val imageNode = node.getText("image") ?: ""
+        val imageUrl = node.getText("image", "image_url") ?: ""
+        return when {
+            imageNode?.startsWith("data:image/svg+xml;base64") -> {
+                val hash = ipfsService.upload("image.svg", base64MimeToBytes(imageNode))
+                ipfsService.url(hash)
+            }
+            imageUrl.isNotEmpty() -> imageUrl
+            imageNode.isNotEmpty() -> imageNode
+            else -> ""
+        }
     }
 
     fun attributes(node: ObjectNode): List<ItemAttribute> {
