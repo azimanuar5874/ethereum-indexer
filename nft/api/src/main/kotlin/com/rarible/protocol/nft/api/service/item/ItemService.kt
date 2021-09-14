@@ -12,7 +12,6 @@ import com.rarible.protocol.nft.api.service.item.ItemFilterCriteria.toCriteria
 import com.rarible.protocol.nft.api.service.item.meta.ItemMetaService
 import com.rarible.protocol.nft.core.model.ExtendedItem
 import com.rarible.protocol.nft.core.model.ItemId
-import com.rarible.protocol.nft.core.model.ItemMeta
 import com.rarible.protocol.nft.core.model.ItemsSearchResult
 import com.rarible.protocol.nft.core.repository.history.LazyNftItemHistoryRepository
 import com.rarible.protocol.nft.core.repository.item.ItemRepository
@@ -20,6 +19,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactive.awaitFirstOrNull
+import kotlinx.coroutines.reactive.awaitSingle
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.core.convert.ConversionService
 import org.springframework.stereotype.Component
 
@@ -79,5 +81,16 @@ class ItemService(
             emptyMap()
         }
         ItemsSearchResult(items, meta)
+    }
+
+    suspend fun burnLazyMint(itemId: ItemId) {
+        val lazyMint = lazyNftItemHistoryRepository.findById(itemId).awaitFirstOrNull()
+            ?: throw LazyItemNotFoundException(itemId)
+        lazyNftItemHistoryRepository.remove(lazyMint).awaitSingle()
+        logger.info("Burned $ItemId item")
+    }
+
+    companion object {
+        val logger: Logger = LoggerFactory.getLogger(ItemService::class.java)
     }
 }

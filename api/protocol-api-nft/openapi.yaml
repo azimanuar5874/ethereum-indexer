@@ -267,6 +267,32 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/NftIndexerApiError"
+    delete:
+      tags:
+        - nft-item-controller
+      description: Delete Lazy mint of NFT
+      operationId: deleteLazyMintNftAsset
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/LazyNftBody"
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/NftIndexerApiError"
   "/v0.1/items/{itemId}":
     get:
       tags:

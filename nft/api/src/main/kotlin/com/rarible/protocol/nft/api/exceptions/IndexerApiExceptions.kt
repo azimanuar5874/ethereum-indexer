@@ -26,6 +26,18 @@ class InvalidLazyNftException(message: String): IndexerApiException(
     code = NftIndexerApiErrorDto.Code.INCORRECT_LAZY_NFT
 )
 
+class BurnLazyNftIncorrectSignatureException(id: ItemId): IndexerApiException(
+    message = "Incorrect signature for $id item",
+    status = HttpStatus.BAD_REQUEST,
+    code = NftIndexerApiErrorDto.Code.INCORRECT_SIGNATURE
+)
+
+class BurnLazyNftIncorrectCreatorsException(id: ItemId): IndexerApiException(
+    message = "Incorrect creators for $id item",
+    status = HttpStatus.BAD_REQUEST,
+    code = NftIndexerApiErrorDto.Code.INCORRECT_CREATORS
+)
+
 class TokenNotFoundException(token: Address) : IndexerApiException(
     message = "Token $token not found",
     status = HttpStatus.NOT_FOUND,
