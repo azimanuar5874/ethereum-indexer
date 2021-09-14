@@ -279,11 +279,6 @@ paths:
           required: true
           schema:
             type: string
-        - name: includeMeta
-          in: query
-          required: false
-          schema:
-            type: boolean
       responses:
         '200':
           description: OK
@@ -325,11 +320,6 @@ paths:
           schema:
             type: integer
             format: int32
-        - name: includeMeta
-          in: query
-          required: false
-          schema:
-            type: boolean
       responses:
         '200':
           description: OK
@@ -365,11 +355,6 @@ paths:
           schema:
             type: integer
             format: int32
-        - name: includeMeta
-          in: query
-          required: false
-          schema:
-            type: boolean
       responses:
         '200':
           description: OK
@@ -405,11 +390,6 @@ paths:
           schema:
             type: integer
             format: int32
-        - name: includeMeta
-          in: query
-          required: false
-          schema:
-            type: boolean
       responses:
         '200':
           description: OK
@@ -457,11 +437,6 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: includeMeta
-          in: query
-          required: false
-          schema:
-            type: boolean
       responses:
         '200':
           description: OK

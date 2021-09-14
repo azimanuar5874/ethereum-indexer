@@ -7,6 +7,7 @@ import com.rarible.protocol.nft.core.model.OwnershipId
 
 class ProtocolNftEventPublisher(
     private val itemEventProducer: RaribleKafkaProducer<NftItemEventDto>,
+    private val internalItemEventWithoutMetaProducer: RaribleKafkaProducer<NftItemEventDto>,
     private val ownershipEventProducer: RaribleKafkaProducer<NftOwnershipEventDto>,
     private val nftItemActivityProducer: RaribleKafkaProducer<ActivityDto>
 ) {
@@ -23,6 +24,16 @@ class ProtocolNftEventPublisher(
             id = event.eventId
         )
         itemEventProducer.send(message).ensureSuccess()
+    }
+
+    suspend fun internalPublishWithoutMeta(eventWithoutMeta: NftItemEventDto) {
+        val message = KafkaMessage(
+            key = eventWithoutMeta.itemId,
+            value = eventWithoutMeta,
+            headers = itemEventHeaders,
+            id = eventWithoutMeta.eventId
+        )
+        internalItemEventWithoutMetaProducer.send(message).ensureSuccess()
     }
 
     suspend fun publish(event: NftOwnershipEventDto) {

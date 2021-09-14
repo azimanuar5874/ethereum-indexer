@@ -526,7 +526,7 @@ class OrderServiceIt : AbstractOrderIt() {
         val signature = realOrder.toForm(privateKey).signature
 
         val itemId = "${erc721AssetType.token}:${erc721AssetType.tokenId}"
-        every { nftItemApi.getNftItemById(eq(itemId), any()) } returns
+        every { nftItemApi.getNftItemById(eq(itemId)) } returns
                 Mono.just(
                     createNftItemDto(
                         erc721AssetType.token,

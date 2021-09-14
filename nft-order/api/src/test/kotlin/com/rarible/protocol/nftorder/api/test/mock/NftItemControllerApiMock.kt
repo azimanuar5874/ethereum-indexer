@@ -13,7 +13,7 @@ class NftItemControllerApiMock(
 
     fun mockGetNftItemById(itemId: ItemId, returnItem: NftItemDto?) {
         every {
-            nftItemControllerApi.getNftItemById(itemId.decimalStringValue, null)
+            nftItemControllerApi.getNftItemById(itemId.decimalStringValue)
         } returns (if (returnItem == null) Mono.empty() else Mono.just(returnItem))
     }
 
@@ -25,7 +25,7 @@ class NftItemControllerApiMock(
 
     fun mockGetNftItemById(itemId: ItemId, error: NftIndexerApiErrorDto) {
         every {
-            nftItemControllerApi.getNftItemById(itemId.decimalStringValue, null)
+            nftItemControllerApi.getNftItemById(itemId.decimalStringValue)
         } throws (ProtocolApiResponseException(null, null, error))
     }
 
@@ -35,7 +35,6 @@ class NftItemControllerApiMock(
         showDeleted: Boolean,
         lastUpdatedFrom: Long,
         lastUpdatedTo: Long,
-        includeMeta: Boolean,
         vararg returnItems: NftItemDto
     ) {
         every {
@@ -44,27 +43,26 @@ class NftItemControllerApiMock(
                 size,
                 showDeleted,
                 lastUpdatedFrom,
-                lastUpdatedTo,
-                includeMeta
+                lastUpdatedTo
             )
         } returns Mono.just(NftItemsDto(returnItems.size.toLong(), null, returnItems.asList()))
     }
 
     fun mockGetNftOrderItemsByOwner(owner: String, vararg returnItems: NftItemDto) {
         every {
-            nftItemControllerApi.getNftItemsByOwner(owner, null, null, null)
+            nftItemControllerApi.getNftItemsByOwner(owner, null, null)
         } returns Mono.just(NftItemsDto(returnItems.size.toLong(), null, returnItems.asList()))
     }
 
     fun mockGetNftOrderItemsByCollection(collection: String, vararg returnItems: NftItemDto) {
         every {
-            nftItemControllerApi.getNftItemsByCollection(collection, null, null, null)
+            nftItemControllerApi.getNftItemsByCollection(collection, null, null)
         } returns Mono.just(NftItemsDto(returnItems.size.toLong(), null, returnItems.asList()))
     }
 
     fun mockGetNftOrderItemsByCreator(creator: String, vararg returnItems: NftItemDto) {
         every {
-            nftItemControllerApi.getNftItemsByCreator(creator, null, null, null)
+            nftItemControllerApi.getNftItemsByCreator(creator, null, null)
         } returns Mono.just(NftItemsDto(returnItems.size.toLong(), null, returnItems.asList()))
     }
 
