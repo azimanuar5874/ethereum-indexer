@@ -155,6 +155,8 @@ components:
             - OWNERSHIP_NOT_FOUND
             - COLLECTION_NOT_FOUND
             - INCORRECT_LAZY_NFT
+            - INCORRECT_SIGNATURE
+            - INCORRECT_CREATORS
         message:
           type: string
 
@@ -529,13 +531,13 @@ components:
     LazyNftBody:
       type: object
       required:
-        - signatures
         - creators
+        - signatures
       properties:
         creators:
           type: array
           items:
-            "$ref": "#/components/schemas/Part"
+            "$ref": "#/components/schemas/Address"
         signatures:
           type: array
           items:
