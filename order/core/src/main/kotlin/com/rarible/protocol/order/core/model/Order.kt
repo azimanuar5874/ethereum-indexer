@@ -99,7 +99,9 @@ data class Order(
                 makeBalance = makeBalance,
                 protocolCommission = protocolCommission,
                 cancelled = zeroWhenCancelled && cancelled,
-                feeSide = getFeeSide(make.type, take.type)
+                feeSide = getFeeSide(make.type, take.type),
+                start = start,
+                end = end
             )
         )
     }
@@ -137,6 +139,10 @@ data class Order(
         return copy(makePriceUsd = price)
     }
 
+    fun fixMakeStock() {
+
+    }
+
     companion object {
         /**
          * Maximum size of [priceHistory]
@@ -151,9 +157,11 @@ data class Order(
             makeBalance: EthUInt256,
             protocolCommission: EthUInt256,
             feeSide: FeeSide,
-            cancelled: Boolean
+            cancelled: Boolean,
+            start: Long?,
+            end: Long?
         ): EthUInt256 {
-            if (makeValue == EthUInt256.ZERO || takeValue == EthUInt256.ZERO) {
+            if (makeValue == EthUInt256.ZERO || takeValue == EthUInt256.ZERO || missedInterval(start, end)) {
                 return EthUInt256.ZERO
             }
             val (make) = calculateRemaining(makeValue, takeValue, fill, cancelled)
@@ -165,6 +173,11 @@ data class Order(
                 makeBalance = (makeBalance * EthUInt256.of(10000)) / (fee + EthUInt256.of(10000))
             )
             return minOf(make, roundedMakeBalance)
+        }
+
+        private fun missedInterval(start: Long?, end: Long?): Boolean {
+            val now = Instant.now().epochSecond
+            return null != start && null != end && !(now in start..end)
         }
 
         private fun calculateRemaining(
