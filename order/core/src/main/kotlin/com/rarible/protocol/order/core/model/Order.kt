@@ -106,6 +106,13 @@ data class Order(
         )
     }
 
+    fun withMakeStock(): Order {
+        return when {
+            active(start, end) -> this
+            else -> copy(makeStock = EthUInt256.ZERO)
+        }
+    }
+
     fun withNewValues(
         make: EthUInt256,
         take: EthUInt256,
@@ -139,10 +146,6 @@ data class Order(
         return copy(makePriceUsd = price)
     }
 
-    fun fixMakeStock() {
-
-    }
-
     companion object {
         /**
          * Maximum size of [priceHistory]
@@ -161,7 +164,7 @@ data class Order(
             start: Long?,
             end: Long?
         ): EthUInt256 {
-            if (makeValue == EthUInt256.ZERO || takeValue == EthUInt256.ZERO || missedInterval(start, end)) {
+            if (makeValue == EthUInt256.ZERO || takeValue == EthUInt256.ZERO || !active(start, end)) {
                 return EthUInt256.ZERO
             }
             val (make) = calculateRemaining(makeValue, takeValue, fill, cancelled)
@@ -175,9 +178,11 @@ data class Order(
             return minOf(make, roundedMakeBalance)
         }
 
-        private fun missedInterval(start: Long?, end: Long?): Boolean {
-            val now = Instant.now().epochSecond
-            return null != start && null != end && !(now in start..end)
+        private fun active(start: Long?, end: Long?): Boolean {
+            val now = Instant.now().toEpochMilli()
+            val started = start?.let { it < now } ?: true
+            val alive = end?.let { it > now } ?: true
+            return started && alive
         }
 
         private fun calculateRemaining(
