@@ -117,7 +117,7 @@ class PropertiesCacheDescriptor(
         val imageUrl = node.getText("image", "image_url") ?: ""
         return when {
             imageNode?.startsWith("data:image/svg+xml;base64") -> {
-                val hash = ipfsService.upload("image.svg", base64MimeToBytes(imageNode))
+                val hash = ipfsService.upload("image.svg", base64MimeToBytes(imageNode), "image/svg+xml")
                 ipfsService.url(hash)
             }
             imageUrl.isNotEmpty() -> imageUrl
