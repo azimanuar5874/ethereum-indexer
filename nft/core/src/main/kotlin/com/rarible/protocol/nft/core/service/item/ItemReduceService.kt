@@ -217,6 +217,10 @@ class ItemReduceService(
                     is ItemCreators -> {
                         item.copy(creators = event.creators, creatorsFinal = true)
                     }
+                    is BurnItemLazyMint -> {
+                        logger.info("Ignoring BurnItemLazyMint event")
+                        item
+                    }
                 }.copy(date = event.date)
             }
             LogEventStatus.PENDING -> {
@@ -256,6 +260,14 @@ class ItemReduceService(
             is ItemCreators -> {
                 map
             }
+            is BurnItemLazyMint -> {
+                val from = map.getOrElse(event.from) { Ownership.empty(event.token, event.tokenId, event.from) }
+                val to = Ownership.empty(event.token, event.tokenId, event.owner)
+                map + mapOf(
+                    event.from to ownershipReducer(from, log),
+                    event.owner to ownershipReducer(to, log)
+                )
+            }
         }
     }
 
@@ -277,11 +289,7 @@ class ItemReduceService(
                             } else {
                                 ownership
                             }
-                            event.from -> if (event.type == ItemType.LAZY_MINT) {
-                                ownership.copy(lazyValue = ownership.lazyValue - event.value)
-                            } else {
-                                ownership.copy(value = ownership.value - event.value)
-                            }
+                            event.from -> ownership.copy(value = ownership.value - event.value)
                             else -> ownership
                         }
                     }
@@ -293,6 +301,9 @@ class ItemReduceService(
                     }
                     is ItemCreators -> {
                         ownership
+                    }
+                    is BurnItemLazyMint -> {
+                        ownership.copy(lazyValue = ownership.lazyValue - event.value)
                     }
                 }.copy(date = event.date)
             else -> ownership
